@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI News Blog</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #080b14;
+      --surface:   #0e1320;
+      --surface2:  #141a2e;
+      --border:    #1e2540;
+      --accent:    #3b82f6;
+      --accent2:   #8b5cf6;
+      --cyan:      #06b6d4;
+      --green:     #10b981;
+      --gold:      #f59e0b;
+      --red:       #ef4444;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --soft:      #94a3b8;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ─────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+
+    .logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .logo span {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    #countdown-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    #countdown-wrap .dot {
+      width: 7px; height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    #countdown { color: var(--cyan); font-weight: 600; }
+
+    .refresh-btn {
+      padding: 6px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--soft);
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.2s;
+    }
+
+    .refresh-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── CATEGORY BAR ───────────────────────────── */
+    .cat-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .cat-bar::-webkit-scrollbar { display: none; }
+
+    .cat-btn {
+      padding: 14px 20px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      font-family: 'DM Sans', sans-serif;
+      text-transform: capitalize;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .cat-btn:hover { color: var(--text); }
+
+    .cat-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .cat-btn .cat-icon { font-size: 1rem; }
+
+    .cat-count {
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 1px 7px;
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    .cat-btn.active .cat-count {
+      background: rgba(59,130,246,0.15);
+      color: var(--accent);
+    }
+
+    /* ── MAIN ───────────────────────────────────── */
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 36px 40px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      text-transform: capitalize;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title .badge {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.65rem;
+      background: rgba(6,182,212,0.15);
+      color: var(--cyan);
+      border: 1px solid rgba(6,182,212,0.3);
+      padding: 3px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    #last-updated {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* ── GRID ───────────────────────────────────── */
+    .posts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 22px;
+    }
+
+    /* Featured first card */
+    .posts-grid .post-card:first-child {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    @media (max-width: 768px) {
+      .posts-grid .post-card:first-child {
+        grid-column: 1;
+        display: block;
+      }
+    }
+
+    /* ── CARD ───────────────────────────────────── */
+    .post-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+      animation: fadeUp 0.4s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .post-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: 0 12px 40px rgba(59,130,246,0.12);
+    }
+
+    .card-img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .posts-grid .post-card:first-child .card-img {
+      height: 100%;
+      min-height: 260px;
+    }
+
+    .card-no-img {
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(135deg, var(--surface2), var(--border));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+
+    .posts-grid .post-card:first-child .card-no-img {
+      height: 100%;
+      min-height: 260px;
+    }
+
+    .card-body { padding: 18px 20px 20px; }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .card-source {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card-date {
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    .card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1.45;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .posts-grid .post-card:first-child .card-title {
+      font-size: 1.4rem;
+    }
+
+    .card-excerpt {
+      font-size: 0.82rem;
+      color: var(--soft);
+      line-height: 1.6;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .read-more {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .cat-tag {
+      font-size: 0.65rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      text-transform: capitalize;
+    }
+
+    /* ── EMPTY STATE ────────────────────────────── */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 1.1rem; margin-bottom: 8px; color: var(--soft); }
+    .empty-state p { font-size: 0.85rem; }
+
+    /* ── LOADING ────────────────────────────────── */
+    .loading-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 22px;
+    }
+
+    .skeleton {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.5; }
+    }
+
+    .skeleton-img { width: 100%; height: 200px; background: var(--surface2); }
+    .skeleton-body { padding: 18px 20px; }
+    .skeleton-line {
+      height: 12px;
+      background: var(--surface2);
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    .skeleton-line.short { width: 60%; }
+    .skeleton-line.med   { width: 80%; }
+
+    /* ── MODAL ──────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 500;
+      padding: 24px 16px;
+      overflow-y: auto;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.open {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      max-width: 760px;
+      width: 100%;
+      overflow: hidden;
+      animation: modalIn 0.3s ease;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-hero {
+      width: 100%;
+      height: 280px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .modal-hero-placeholder {
+      width: 100%;
+      height: 180px;
+      background: linear-gradient(135deg, var(--surface2), var(--border));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 4rem;
+    }
+
+    .modal-body { padding: 32px 36px; }
+
+    .modal-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .modal-source {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .modal-cat {
+      font-size: 0.65rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: rgba(139,92,246,0.15);
+      border: 1px solid rgba(139,92,246,0.3);
+      color: var(--accent2);
+      text-transform: capitalize;
+    }
+
+    .modal-date {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    .modal-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.65rem;
+      font-weight: 700;
+      line-height: 1.35;
+      color: var(--text);
+      margin-bottom: 24px;
+    }
+
+    .modal-divider {
+      width: 48px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      border-radius: 2px;
+      margin-bottom: 24px;
+    }
+
+    .modal-content {
+      font-size: 0.92rem;
+      line-height: 1.85;
+      color: var(--soft);
+      white-space: pre-wrap;
+    }
+
+    .modal-content p { margin-bottom: 16px; }
+
+    .modal-footer {
+      padding: 20px 36px 28px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-close-btn {
+      padding: 9px 22px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--soft);
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.2s;
+    }
+
+    .modal-close-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .modal-source-link {
+      font-size: 0.78rem;
+      color: var(--accent);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+
+    .modal-source-link:hover { opacity: 0.75; }
+
+    /* ── TOAST ──────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 0.82rem;
+      color: var(--text);
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 999;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      animation: toastIn 0.3s ease;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    #toast.show { display: flex; }
+
+    /* ── RESPONSIVE ─────────────────────────────── */
+    @media (max-width: 768px) {
+      header { padding: 0 16px; }
+      .cat-bar { padding: 0 16px; }
+      main { padding: 24px 16px; }
+      .modal-body { padding: 24px 20px; }
+      .modal-footer { padding: 16px 20px 24px; }
+      .modal-title { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">AI<span>News</span>Blog</div>
+  <div class="header-right">
+    <div id="countdown-wrap">
+      <div class="dot"></div>
+      <span>Next refresh in </span>
+      <span id="countdown">5:00</span>
+    </div>
+    <button class="refresh-btn" onclick="manualRefresh()">⟳ Refresh Now</button>
+  </div>
+</header>
+
+<!-- CATEGORY BAR -->
+<nav class="cat-bar" id="catBar">
+  <!-- Injected by JS -->
+</nav>
+
+<!-- MAIN CONTENT -->
+<main>
+  <div class="section-header">
+    <div class="section-title">
+      <span id="activeCatLabel">All News</span>
+      <span class="badge">Live</span>
+    </div>
+    <div id="last-updated"></div>
+  </div>
+  <div id="postsContainer"></div>
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal" id="modal">
+    <div id="modalHero"></div>
+    <div class="modal-body">
+      <div class="modal-meta">
+        <span class="modal-source" id="modalSource"></span>
+        <span class="modal-cat" id="modalCat"></span>
+        <span class="modal-date" id="modalDate"></span>
+      </div>
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <div class="modal-divider"></div>
+      <div class="modal-content" id="modalContent"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-close-btn" onclick="closeModal()">✕ Close</button>
+      <a class="modal-source-link" id="modalLink" href="#" target="_blank" rel="noopener">
+        Read Original ↗
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+  // ── CONFIG ───────────────────────────────────────────────
+  const CATEGORIES = [
+    { key: 'all',        label: 'All News',   icon: '🌐' },
+    { key: 'ai',         label: 'AI',         icon: '🤖' },
+    { key: 'business',   label: 'Business',   icon: '💼' },
+    { key: 'science',    label: 'Science',    icon: '🔬' },
+    { key: 'politics',   label: 'Politics',   icon: '🏛️' },
+    { key: 'technology', label: 'Technology', icon: '💻' },
+    { key: 'world',      label: 'World',      icon: '🌍' },
+  ];
+
+  const CAT_EMOJI = {
+    ai:'🤖', business:'💼', science:'🔬',
+    politics:'🏛️', technology:'💻', world:'🌍', nation:'🗺️'
+  };
+
+  let allPosts = {};
+  let activeCategory = 'all';
+  let countdownSec = 600; // 10 minutes
+  let countdownInterval;
+  let refreshInterval;
+
+  // ── INIT ─────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    buildCatBar();
+    loadPosts();
+    startCountdown();
+    // Auto-fetch every 5 minutes
+    refreshInterval = setInterval(() => {
+      loadPosts();
+      countdownSec = 600;
+    }, 600000);
+  });
+
+  // ── BUILD CATEGORY BAR ───────────────────────────────────
+  function buildCatBar() {
+    const bar = document.getElementById('catBar');
+    bar.innerHTML = CATEGORIES.map(cat => `
+      <button class="cat-btn ${cat.key === activeCategory ? 'active' : ''}"
+              onclick="switchCategory('${cat.key}')"
+              id="catBtn_${cat.key}">
+        <span class="cat-icon">${cat.icon}</span>
+        ${cat.label}
+        <span class="cat-count" id="catCount_${cat.key}">0</span>
+      </button>
+    `).join('');
+  }
+
+  // ── SWITCH CATEGORY ──────────────────────────────────────
+  function switchCategory(key) {
+    activeCategory = key;
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`catBtn_${key}`)?.classList.add('active');
+
+    const catInfo = CATEGORIES.find(c => c.key === key);
+    document.getElementById('activeCatLabel').textContent = catInfo?.label || key;
+
+    renderPosts();
+  }
+
+  // ── LOAD POSTS FROM API ──────────────────────────────────
+  async function loadPosts() {
+    showLoading();
+    try {
+      const res = await fetch('/api/posts');
+      allPosts = await res.json();
+      updateCatCounts();
+      renderPosts();
+      document.getElementById('last-updated').textContent =
+        'Updated: ' + new Date().toLocaleTimeString();
+    } catch (err) {
+      console.error('Failed to load posts:', err);
+      showEmpty('Connection Error', 'Could not reach the server. Make sure server.js is running.');
+    }
+  }
+
+  // ── UPDATE CATEGORY COUNTS ───────────────────────────────
+  function updateCatCounts() {
+    let totalAll = 0;
+    for (const [cat, posts] of Object.entries(allPosts)) {
+      const count = posts.length;
+      totalAll += count;
+      const el = document.getElementById(`catCount_${cat}`);
+      if (el) el.textContent = count;
+    }
+    const allEl = document.getElementById('catCount_all');
+    if (allEl) allEl.textContent = totalAll;
+  }
+
+  // ── RENDER POSTS ─────────────────────────────────────────
+  function renderPosts() {
+    const container = document.getElementById('postsContainer');
+
+    let posts = [];
+
+    if (activeCategory === 'all') {
+      // Merge all categories, sort by generatedAt
+      for (const catPosts of Object.values(allPosts)) {
+        posts = posts.concat(catPosts);
+      }
+      posts.sort((a, b) => new Date(b.generatedAt) - new Date(a.generatedAt));
+      posts = posts.slice(0, 20);
+    } else {
+      posts = allPosts[activeCategory] || [];
+    }
+
+    if (!posts.length) {
+      showEmpty('No articles yet', 'The agent is fetching and generating content. Check back in a moment!');
+      return;
+    }
+
+    container.innerHTML = `<div class="posts-grid">${posts.map((p, i) =>
+      buildCard(p, i)
+    ).join('')}</div>`;
+  }
+
+  // ── BUILD CARD ───────────────────────────────────────────
+  function buildCard(post, index) {
+    const imgHtml = post.image
+      ? `<img class="card-img" src="${post.image}" alt="${escHtml(post.title)}" onerror="this.parentElement.innerHTML='<div class=card-no-img>${CAT_EMOJI[post.category]||'📰'}</div>'">`
+      : `<div class="card-no-img">${CAT_EMOJI[post.category] || '📰'}</div>`;
+
+    const date = post.publishedAt
+      ? new Date(post.publishedAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+      : 'Today';
+
+    const excerpt = extractExcerpt(post.content);
+
+    const delay = Math.min(index * 60, 300);
+
+    return `
+      <div class="post-card" onclick="openModal('${escId(post.id)}')" style="animation-delay:${delay}ms" data-id="${escId(post.id)}">
+        ${imgHtml}
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="card-source">${escHtml(post.source)}</span>
+            <span class="card-date">${date}</span>
+          </div>
+          <h3 class="card-title">${escHtml(post.title)}</h3>
+          <p class="card-excerpt">${escHtml(excerpt)}</p>
+          <div class="card-footer">
+            <span class="read-more">Read article →</span>
+            <span class="cat-tag">${post.category || ''}</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ── OPEN MODAL ───────────────────────────────────────────
+  function openModal(postId) {
+    let post = null;
+    for (const catPosts of Object.values(allPosts)) {
+      post = catPosts.find(p => String(p.id) === String(postId));
+      if (post) break;
+    }
+    if (!post) return;
+
+    // Hero image
+    const heroEl = document.getElementById('modalHero');
+    if (post.image) {
+      heroEl.innerHTML = `<img class="modal-hero" src="${post.image}" alt="${escHtml(post.title)}" onerror="this.parentElement.innerHTML='<div class=modal-hero-placeholder>${CAT_EMOJI[post.category]||'📰'}</div>'">`;
+    } else {
+      heroEl.innerHTML = `<div class="modal-hero-placeholder">${CAT_EMOJI[post.category] || '📰'}</div>`;
+    }
+
+    document.getElementById('modalSource').textContent  = post.source || '';
+    document.getElementById('modalCat').textContent     = post.category || '';
+    document.getElementById('modalTitle').textContent   = post.title || '';
+    document.getElementById('modalContent').textContent = post.content || '';
+    document.getElementById('modalLink').href           = post.sourceUrl || '#';
+    document.getElementById('modalDate').textContent    = post.publishedAt
+      ? new Date(post.publishedAt).toLocaleDateString('en-US', { weekday:'short', month:'long', day:'numeric', year:'numeric' })
+      : '';
+
+    document.getElementById('modalOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function closeModalOutside(e) {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ── MANUAL REFRESH ───────────────────────────────────────
+  async function manualRefresh() {
+    showToast('🔄 Refreshing news...');
+    try {
+      await fetch('/api/refresh', { method: 'POST' });
+      showToast('⏳ Agent is generating new posts. Reloading in 30s...');
+      setTimeout(() => { loadPosts(); countdownSec = 600; }, 30000);
+    } catch {
+      showToast('❌ Could not connect to server');
+    }
+  }
+
+  // ── COUNTDOWN ────────────────────────────────────────────
+  function startCountdown() {
+    clearInterval(countdownInterval);
+    countdownInterval = setInterval(() => {
+      countdownSec--;
+      if (countdownSec < 0) countdownSec = 300;
+      const m = Math.floor(countdownSec / 60);
+      const s = countdownSec % 60;
+      document.getElementById('countdown').textContent =
+        `${m}:${String(s).padStart(2,'0')}`;
+    }, 1000);
+  }
+
+  // ── HELPERS ──────────────────────────────────────────────
+  function extractExcerpt(content) {
+    if (!content) return 'Click to read the full article...';
+    const clean = content.replace(/INTRODUCTION:|BODY:|CONCLUSION:/g, '').trim();
+    return clean.substring(0, 160).trim() + (clean.length > 160 ? '...' : '');
+  }
+
+  function escHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function escId(id) {
+    return String(id).replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
+  function showLoading() {
+    const container = document.getElementById('postsContainer');
+    container.innerHTML = `
+      <div class="loading-grid">
+        ${Array(6).fill(0).map(() => `
+          <div class="skeleton">
+            <div class="skeleton-img"></div>
+            <div class="skeleton-body">
+              <div class="skeleton-line short"></div>
+              <div class="skeleton-line med"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line short"></div>
+            </div>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  function showEmpty(title, msg) {
+    document.getElementById('postsContainer').innerHTML = `
+      <div class="posts-grid">
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <h3>${title}</h3>
+          <p>${msg}</p>
+        </div>
+      </div>`;
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+  }
+</script>
+</body>
+</html>
