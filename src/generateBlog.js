@@ -48,12 +48,12 @@ Write the full blog post now:`;
       throw new Error('AI21 returned empty content');
     }
 
-    console.log(`✅ Blog generated for: ${title.substring(0, 50)}...`);
+    console.log('Blog generated for: ' + title.substring(0, 50));
     return content.trim();
 
   } catch (err) {
-    console.error('❌ AI21 Error:', err.response?.data || err.message);
-    return `${title}\n\n${description || 'This is a developing story.'}\n\nThis story is part of our ongoing coverage in the ${category} category. Check back for more updates.`;
+    console.error('AI21 Error:', err.response?.data || err.message);
+    return description || 'This is a developing story in the ' + category + ' category.';
   }
 }
 

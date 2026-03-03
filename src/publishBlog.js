@@ -1,13 +1,18 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
-const filePath = path.join(__dirname, "../blog/posts.json");
+const filePath = path.join(__dirname, '../blog/posts.json');
 
 function loadPosts() {
-  if (fs.existsSync(filePath)) {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  try {
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
+      return JSON.parse(raw);
+    }
+  } catch (err) {
+    console.log('posts.json corrupted, resetting...');
   }
-  return { ai: [], business: [], science: [], politics: [], technology: [], world: [] };
+  return { ai: [], technology: [], business: [], science: [], politics: [], world: [] };
 }
 
 function publishPost(category, article, blogContent) {
@@ -17,7 +22,7 @@ function publishPost(category, article, blogContent) {
 
   const alreadyExists = posts[category].some(post => post.url === article.url);
   if (alreadyExists) {
-    console.log(`⚠️  Duplicate skipped: ${article.title}`);
+    console.log('Duplicate skipped: ' + article.title);
     return;
   }
 
@@ -26,11 +31,17 @@ function publishPost(category, article, blogContent) {
     title: article.title,
     content: blogContent,
     url: article.url,
+    image: article.image || '',
+    source: article.source?.name || '',
     createdAt: new Date().toISOString()
   });
 
+  if (posts[category].length > 20) {
+    posts[category] = posts[category].slice(0, 20);
+  }
+
   fs.writeFileSync(filePath, JSON.stringify(posts, null, 2));
-  console.log(`✅ Blog saved in [${category}]`);
+  console.log('Saved [' + category + ']: ' + article.title.substring(0, 60));
 }
 
 module.exports = { loadPosts, publishPost };
