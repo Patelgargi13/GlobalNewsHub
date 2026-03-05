@@ -1,293 +1,375 @@
 const axios = require('axios');
+const Parser = require('rss-parser');
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
-const CATEGORY_QUERIES = {
-  ai: 'artificial intelligence OR machine learning',
-  business: 'business OR finance OR economy',
-  science: 'science OR discovery OR research',
-  politics: 'politics OR government OR election',
-  technology: 'technology OR innovation OR startup',
-  world: 'world news OR international OR global'
-};
-
-const COUNTRY_MAP = {
-  worldwide: '',
-  us: 'us',
-  uk: 'gb',
-  india: 'in',
-  europe: 'de',
-  china: 'cn',
-  japan: 'jp',
-  australia: 'au',
-  canada: 'ca',
-  brazil: 'br'
-};
-
-// Country-specific news sources for fallback search
-const COUNTRY_SOURCES = {
-  in: 'the-times-of-india,the-hindu,ndtv,india-today,the-economic-times',
-  gb: 'bbc-news,the-guardian-uk,independent,sky-news,the-telegraph',
-  de: 'der-spiegel,focus,handelsblatt,die-zeit',
-  cn: 'south-china-morning-post',
-  jp: 'the-japan-times',
-  au: 'news-com-au,the-sydney-morning-herald,herald-sun',
-  ca: 'cbc-news,the-globe-and-mail,national-post',
-  br: 'globo'
-};
-
-// Country domain keywords for URL-based detection
-const COUNTRY_DOMAINS = {
-  in: ['.in/', 'india', 'ndtv', 'hindustantimes', 'timesofindia', 'thehindu', 'indianexpress', 'indiatoday'],
-  gb: ['.co.uk/', 'bbc.com', 'theguardian', 'independent.co', 'skynews'],
-  de: ['spiegel.de', 'focus.de', 'zeit.de', 'dw.com'],
-  cn: ['scmp.com', 'xinhua', 'chinadaily'],
-  jp: ['japantimes', 'nhk.or.jp', 'asahi.com'],
-  au: ['news.com.au', 'smh.com.au', '.com.au/'],
-  ca: ['cbc.ca', 'globeandmail', 'nationalpost'],
-  br: ['globo.com', 'folha.uol', '.com.br/']
-};
-
-const REGION_INFO = {
-  us: { name: 'United States', flag: '🇺🇸' },
-  gb: { name: 'United Kingdom', flag: '🇬🇧' },
-  in: { name: 'India', flag: '🇮🇳' },
-  de: { name: 'Europe', flag: '🇪🇺' },
-  cn: { name: 'China', flag: '🇨🇳' },
-  jp: { name: 'Japan', flag: '🇯🇵' },
-  au: { name: 'Australia', flag: '🇦🇺' },
-  ca: { name: 'Canada', flag: '🇨🇦' },
-  br: { name: 'Brazil', flag: '🇧🇷' }
-};
-
-const SOURCE_COUNTRY_MAP = {
-  'bbc': { name: 'United Kingdom', flag: '🇬🇧' },
-  'bbc news': { name: 'United Kingdom', flag: '🇬🇧' },
-  'the guardian': { name: 'United Kingdom', flag: '🇬🇧' },
-  'sky news': { name: 'United Kingdom', flag: '🇬🇧' },
-  'the independent': { name: 'United Kingdom', flag: '🇬🇧' },
-  'cnn': { name: 'United States', flag: '🇺🇸' },
-  'fox news': { name: 'United States', flag: '🇺🇸' },
-  'nbc news': { name: 'United States', flag: '🇺🇸' },
-  'abc news': { name: 'United States', flag: '🇺🇸' },
-  'the new york times': { name: 'United States', flag: '🇺🇸' },
-  'washington post': { name: 'United States', flag: '🇺🇸' },
-  'the washington post': { name: 'United States', flag: '🇺🇸' },
-  'usa today': { name: 'United States', flag: '🇺🇸' },
-  'npr': { name: 'United States', flag: '🇺🇸' },
-  'the verge': { name: 'United States', flag: '🇺🇸' },
-  'wired': { name: 'United States', flag: '🇺🇸' },
-  'techcrunch': { name: 'United States', flag: '🇺🇸' },
-  'bloomberg': { name: 'United States', flag: '🇺🇸' },
-  'reuters': { name: 'United States', flag: '🇺🇸' },
-  'associated press': { name: 'United States', flag: '🇺🇸' },
-  'ap news': { name: 'United States', flag: '🇺🇸' },
-  'globenewswire': { name: 'United States', flag: '🇺🇸' },
-  'geeky gadgets': { name: 'United States', flag: '🇺🇸' },
-  'lifesciencesworld.com': { name: 'United States', flag: '🇺🇸' },
-  'c-sharpcorner.com': { name: 'United States', flag: '🇺🇸' },
-  'the times of india': { name: 'India', flag: '🇮🇳' },
-  'times of india': { name: 'India', flag: '🇮🇳' },
-  'ndtv': { name: 'India', flag: '🇮🇳' },
-  'the hindu': { name: 'India', flag: '🇮🇳' },
-  'hindustan times': { name: 'India', flag: '🇮🇳' },
-  'india today': { name: 'India', flag: '🇮🇳' },
-  'the economic times': { name: 'India', flag: '🇮🇳' },
-  'the indian express': { name: 'India', flag: '🇮🇳' },
-  'cbc news': { name: 'Canada', flag: '🇨🇦' },
-  'cbc': { name: 'Canada', flag: '🇨🇦' },
-  'the globe and mail': { name: 'Canada', flag: '🇨🇦' },
-  'toronto star': { name: 'Canada', flag: '🇨🇦' },
-  'the sydney morning herald': { name: 'Australia', flag: '🇦🇺' },
-  'the australian': { name: 'Australia', flag: '🇦🇺' },
-  'spiegel': { name: 'Germany', flag: '🇩🇪' },
-  'der spiegel': { name: 'Germany', flag: '🇩🇪' },
-  'dw': { name: 'Germany', flag: '🇩🇪' },
-  'dw news': { name: 'Germany', flag: '🇩🇪' },
-  'le monde': { name: 'France', flag: '🇫🇷' },
-  'france 24': { name: 'France', flag: '🇫🇷' },
-  'al jazeera': { name: 'Qatar', flag: '🇶🇦' },
-  'south china morning post': { name: 'Hong Kong', flag: '🇭🇰' },
-  'xinhua': { name: 'China', flag: '🇨🇳' },
-  'japan times': { name: 'Japan', flag: '🇯🇵' },
-  'nhk': { name: 'Japan', flag: '🇯🇵' },
-  'rt': { name: 'Russia', flag: '🇷🇺' },
-  'haaretz': { name: 'Israel', flag: '🇮🇱' }
-};
-
-function getSourceCountry(sourceName) {
-  if (!sourceName) return null;
-  var key = sourceName.toLowerCase().trim();
-  if (SOURCE_COUNTRY_MAP[key]) return SOURCE_COUNTRY_MAP[key];
-  for (var mapKey in SOURCE_COUNTRY_MAP) {
-    if (key.includes(mapKey) || mapKey.includes(key)) {
-      return SOURCE_COUNTRY_MAP[mapKey];
-    }
+const rssParser = new Parser({
+  timeout: 15000, // increased for slow networks — don't hang for 12s
+  headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NewsAI/1.0)' },
+  customFields: {
+    item: [
+      ['media:content',   'media:content'  ],
+      ['media:thumbnail', 'media:thumbnail']
+    ]
   }
+});
+
+// ── CATEGORY KEYWORDS ────────────────────────────────────
+var CATEGORY_KEYWORDS = {
+  ai:         ['artificial intelligence','machine learning',' ai ','chatgpt','openai','neural','deepmind','llm','generative','gpt','robot'],
+  technology: ['technology','tech','software','startup','innovation','gadget','apple','google','microsoft','cybersecurity','semiconductor','chip','app'],
+  business:   ['business','economy','finance','market','stock','trade','gdp','inflation','investment','revenue','profit','earnings','bank'],
+  science:    ['science','research','discovery','space','nasa','climate','biology','physics','medicine','study','experiment','species','asteroid'],
+  politics:   ['politics','government','election','president','minister','parliament','senate','policy','vote','congress','treaty','diplomat','law'],
+  world:      ['world','international','global','war','conflict','crisis','united nations','diplomacy','sanction','protest','summit','attack']
+};
+
+var CATEGORY_QUERIES = {
+  ai:         'artificial intelligence OR machine learning OR ChatGPT OR OpenAI',
+  business:   'business OR finance OR economy OR market',
+  science:    'science OR discovery OR research OR space',
+  politics:   'politics OR government OR election OR policy',
+  technology: 'technology OR innovation OR startup OR cybersecurity',
+  world:      'world news OR international OR global'
+};
+
+// NewsData.io category mapping
+var NEWSDATA_CAT = {
+  ai: 'technology', technology: 'technology', business: 'business',
+  science: 'science', politics: 'politics', world: 'world'
+};
+
+// NewsData.io country codes
+var NEWSDATA_COUNTRY = {
+  us:'us', gb:'gb', in:'in', de:'de', cn:'cn',
+  jp:'jp', au:'au', ca:'ca', br:'br'
+};
+
+var ALL_REGION_CODES = ['us','gb','in','de','cn','jp','au','ca','br'];
+
+var COUNTRY_MAP = {
+  worldwide:'', us:'us', uk:'gb', india:'in', europe:'de',
+  china:'cn', japan:'jp', australia:'au', canada:'ca', brazil:'br'
+};
+
+var REGION_INFO = {
+  us: { name:'United States', flag:'🇺🇸' },
+  gb: { name:'United Kingdom', flag:'🇬🇧' },
+  in: { name:'India',          flag:'🇮🇳' },
+  de: { name:'Europe',         flag:'🇪🇺' },
+  cn: { name:'China',          flag:'🇨🇳' },
+  jp: { name:'Japan',          flag:'🇯🇵' },
+  au: { name:'Australia',      flag:'🇦🇺' },
+  ca: { name:'Canada',         flag:'🇨🇦' },
+  br: { name:'Brazil',         flag:'🇧🇷' }
+};
+
+// ── RSS FEEDS — 2 reliable feeds per region ──────────────
+// Only feeds verified to be fast and accessible.
+// China/Brazil/Japan use English international feeds
+// that specifically cover those regions.
+var RSS_FEEDS = {
+  us: [
+    { url:'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', name:'New York Times' },
+    { url:'https://feeds.npr.org/1001/rss.xml',                        name:'NPR' },
+  ],
+  gb: [
+    { url:'https://feeds.bbci.co.uk/news/rss.xml',                    name:'BBC News' },
+    { url:'https://www.theguardian.com/world/rss',                    name:'The Guardian' },
+  ],
+  in: [
+    { url:'https://feeds.feedburner.com/ndtvnews-top-stories',        name:'NDTV' },
+    { url:'https://www.thehindu.com/news/feeder/default.rss',         name:'The Hindu' },
+  ],
+  de: [
+    { url:'https://rss.dw.com/rdf/rss-en-all',                        name:'DW News' },
+    { url:'https://www.france24.com/en/rss',                          name:'France 24' },
+  ],
+  cn: [
+    // China blocks most foreign RSS; use BBC Asia + Al Jazeera for China coverage
+    { url:'https://feeds.bbci.co.uk/news/world/asia/rss.xml',         name:'BBC Asia', forceRegion:true },
+    { url:'https://www.aljazeera.com/xml/rss/all.xml',                name:'Al Jazeera', forceRegion:true },
+  ],
+  jp: [
+    { url:'https://www3.nhk.or.jp/rss/news/cat0.xml',                 name:'NHK' },
+    { url:'https://feeds.bbci.co.uk/news/world/asia/rss.xml',         name:'BBC Asia' },
+  ],
+  au: [
+    { url:'https://www.abc.net.au/news/feed/51120/rss.xml',           name:'ABC Australia' },
+    { url:'https://feeds.bbci.co.uk/news/world/australia/rss.xml',   name:'BBC Australia' },
+  ],
+  ca: [
+    { url:'https://www.cbc.ca/cmlink/rss-topstories',                 name:'CBC News' },
+    { url:'https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml',name:'BBC Canada' },
+  ],
+  br: [
+    { url:'https://www.france24.com/en/americas/rss',                 name:'France 24 Americas' },
+    { url:'https://feeds.bbci.co.uk/news/world/latin_america/rss.xml',name:'BBC Latin America', forceRegion:true },
+  ],
+  global: [
+    { url:'https://feeds.bbci.co.uk/news/world/rss.xml',             name:'BBC World' },
+    { url:'https://www.aljazeera.com/xml/rss/all.xml',               name:'Al Jazeera' },
+    { url:'https://rss.dw.com/rdf/rss-en-world',                     name:'DW World' },
+    { url:'https://www.france24.com/en/rss',                         name:'France 24' },
+    { url:'https://feeds.bbci.co.uk/news/technology/rss.xml',        name:'BBC Technology' },
+    { url:'https://feeds.bbci.co.uk/news/business/rss.xml',          name:'BBC Business' },
+    { url:'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml', name:'BBC Science' },
+  ]
+};
+
+// ── SOURCE → COUNTRY ─────────────────────────────────────
+var SCM = {
+  'new york times':    { name:'United States',  flag:'🇺🇸' },
+  'npr':               { name:'United States',  flag:'🇺🇸' },
+  'bbc news':          { name:'United Kingdom', flag:'🇬🇧' },
+  'bbc world':         { name:'United Kingdom', flag:'🇬🇧' },
+  'bbc technology':    { name:'United Kingdom', flag:'🇬🇧' },
+  'bbc business':      { name:'United Kingdom', flag:'🇬🇧' },
+  'bbc science':       { name:'United Kingdom', flag:'🇬🇧' },
+  'bbc asia':          { name:'United Kingdom', flag:'🇬🇧' },
+  'bbc australia':     { name:'United Kingdom', flag:'🇬🇧' },
+  'bbc canada':        { name:'United Kingdom', flag:'🇬🇧' },
+  'bbc latin america': { name:'United Kingdom', flag:'🇬🇧' },
+  'the guardian':      { name:'United Kingdom', flag:'🇬🇧' },
+  'ndtv':              { name:'India',          flag:'🇮🇳' },
+  'the hindu':         { name:'India',          flag:'🇮🇳' },
+  'dw news':           { name:'Germany',        flag:'🇩🇪' },
+  'dw world':          { name:'Germany',        flag:'🇩🇪' },
+  'france 24':         { name:'France',         flag:'🇫🇷' },
+  'france 24 americas':{ name:'France',         flag:'🇫🇷' },
+  'al jazeera':        { name:'Qatar',          flag:'🇶🇦' },
+  'nhk':               { name:'Japan',          flag:'🇯🇵' },
+  'abc australia':     { name:'Australia',      flag:'🇦🇺' },
+  'cbc news':          { name:'Canada',         flag:'🇨🇦' },
+};
+
+function getSourceCountry(name) {
+  if (!name) return null;
+  var k = name.toLowerCase().trim();
+  if (SCM[k]) return SCM[k];
+  for (var key in SCM) { if (k.includes(key) || key.includes(k)) return SCM[key]; }
   return null;
 }
 
-function isFromCountry(article, countryCode) {
-  var domains = COUNTRY_DOMAINS[countryCode];
-  if (!domains) return false;
-  var url = (article.url || '').toLowerCase();
-  for (var i = 0; i < domains.length; i++) {
-    if (url.includes(domains[i])) return true;
+function matchesCategory(article, category) {
+  if (category === 'world') return true;
+  var kws = CATEGORY_KEYWORDS[category] || [];
+  var text = ((article.title || '') + ' ' + (article.description || '')).toLowerCase();
+  return kws.some(function(kw) { return text.includes(kw); });
+}
+
+function dedupe(arr) {
+  var seen = new Set();
+  return arr.filter(function(a) {
+    if (!a.url || seen.has(a.url)) return false;
+    seen.add(a.url); return true;
+  });
+}
+
+function sortByDate(arr) {
+  return arr.sort(function(a, b) {
+    return new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0);
+  });
+}
+
+function extractRSSImage(item) {
+  try {
+    if (item.enclosure && item.enclosure.url) return item.enclosure.url;
+    var mc = item['media:content'];
+    if (mc) {
+      if (Array.isArray(mc) && mc[0] && mc[0]['$']) return mc[0]['$'].url || '';
+      if (mc['$']) return mc['$'].url || '';
+    }
+    var mt = item['media:thumbnail'];
+    if (mt) {
+      if (Array.isArray(mt) && mt[0] && mt[0]['$']) return mt[0]['$'].url || '';
+      if (mt['$']) return mt['$'].url || '';
+    }
+    if (item.content) {
+      var m = item.content.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (m) return m[1];
+    }
+  } catch(e) {}
+  return '';
+}
+
+// ── RSS FETCHER ───────────────────────────────────────────
+async function fetchRSS(feedInfo, regionInfo) {
+  try {
+    var feed = await rssParser.parseURL(feedInfo.url);
+    var country = feedInfo.forceRegion ? regionInfo : (getSourceCountry(feedInfo.name) || regionInfo);
+    return (feed.items || [])
+      .filter(function(item) { return item.title && item.link; })
+      .slice(0, 15)
+      .map(function(item) {
+        return {
+          title:             (item.title || '').trim(),
+          description:       (item.contentSnippet || item.summary || '').replace(/<[^>]+>/g, '').substring(0, 300),
+          url:               item.link,
+          image:             extractRSSImage(item),
+          publishedAt:       item.pubDate || item.isoDate || new Date().toISOString(),
+          source:            { name: feedInfo.name },
+          sourceCountryName: country.name,
+          sourceCountryFlag: country.flag
+        };
+      });
+  } catch(e) {
+    console.log('[RSS] ' + feedInfo.name + ' failed: ' + e.message.substring(0, 60));
+    return [];
   }
-  return false;
 }
 
-function normalizeArticle(a, regionInfo) {
-  var sourceName = a.source ? a.source.name : '';
-  return {
-    title: a.title,
-    description: a.description || '',
-    url: a.url,
-    image: a.urlToImage || '',
-    publishedAt: a.publishedAt,
-    source: { name: sourceName },
-    sourceCountryName: regionInfo.name,
-    sourceCountryFlag: regionInfo.flag
-  };
-}
+// ── NEWSDATA.IO FETCHER (backup) ──────────────────────────
+var newsdataLastCall = 0;
+var newsdataFailCount = 0;
+var NEWSDATA_GAP = 4000; // 4s min between calls
 
-const cache = {};
-const CACHE_TTL = 30 * 60 * 1000;
-
-async function fetchNews(category, country) {
-  if (country === undefined) country = '';
-  var countryCode = COUNTRY_MAP[country] !== undefined ? COUNTRY_MAP[country] : country;
-  var cacheKey = category + '_' + (countryCode || 'worldwide');
+async function fetchNewsData(category, countryCode, pageSize) {
+  if (!process.env.NEWSDATA_API_KEY) return [];
+  if (newsdataFailCount >= 5) return []; // quota exhausted
   var now = Date.now();
+  // Only enforce gap if called too rapidly (within 1 second)
+  if (now - newsdataLastCall < 1000) return [];
+  newsdataLastCall = now;
 
-  if (cache[cacheKey] && (now - cache[cacheKey].timestamp) < CACHE_TTL) {
-    console.log('[' + category + '/' + (countryCode || 'worldwide') + '] Serving from cache');
+  try {
+    var params = {
+      apikey:   process.env.NEWSDATA_API_KEY,
+      language: 'en',
+      category: NEWSDATA_CAT[category] || 'top',
+    };
+    if (countryCode && NEWSDATA_COUNTRY[countryCode]) {
+      params.country = NEWSDATA_COUNTRY[countryCode];
+    }
+    var r = await axios.get('https://newsdata.io/api/1/news', {
+      params: params, timeout: 8000
+    });
+    var results = r.data.results || [];
+    return results.map(function(a) {
+      var ri = countryCode ? (REGION_INFO[countryCode] || { name: countryCode.toUpperCase(), flag: '' }) : null;
+      var det = getSourceCountry(a.source_id || '');
+      var c = ri || det || { name: 'Worldwide', flag: '🌐' };
+      return {
+        title:             a.title || '',
+        description:       a.description || '',
+        url:               a.link,
+        image:             a.image_url || '',
+        publishedAt:       a.pubDate || new Date().toISOString(),
+        source:            { name: a.source_id || '' },
+        sourceCountryName: c.name,
+        sourceCountryFlag: c.flag
+      };
+    }).filter(function(a) { return a.title && a.url; });
+  } catch(e) {
+    newsdataFailCount++;
+    console.log('[NewsData] ' + e.message.substring(0, 60));
+    return [];
+  }
+}
+
+// ── CACHE ─────────────────────────────────────────────────
+var cache = {};
+var REGION_TTL    =  5 * 60 * 1000;
+var WORLDWIDE_TTL =  8 * 60 * 1000;
+
+// ── FETCH SINGLE REGION ───────────────────────────────────
+async function fetchRegion(category, countryCode, page, pageSize, rssOnly) {
+  var regionInfo = REGION_INFO[countryCode] || { name: countryCode.toUpperCase(), flag: '' };
+  var rssFeeds   = RSS_FEEDS[countryCode] || [];
+
+  // Fire RSS + NewsData.io in PARALLEL — don't wait for RSS before calling API
+  var rssFetches = rssFeeds.map(function(feed) { return fetchRSS(feed, regionInfo); });
+  var ndFetch = (!rssOnly && process.env.NEWSDATA_API_KEY)
+    ? fetchNewsData(category, countryCode, pageSize)
+    : Promise.resolve([]);
+
+  var allFetches = await Promise.allSettled(rssFetches.concat([ndFetch]));
+  var pool = [];
+  allFetches.forEach(function(r) { if (r.status === 'fulfilled' && r.value) pool = pool.concat(r.value); });
+
+  // Try category-filtered results first
+  var filtered = pool.filter(function(a) { return matchesCategory(a, category); });
+
+  // Fall back to full pool if category filter too strict
+  if (filtered.length < 4) {
+    filtered = pool;
+    console.log('[' + countryCode + '/' + category + '] Using full pool: ' + pool.length + ' articles');
+  }
+
+  filtered = dedupe(filtered);
+  filtered = sortByDate(filtered);
+
+  var start = (page - 1) * pageSize;
+  var out   = filtered.slice(start, start + pageSize);
+  console.log('[' + countryCode + '/' + category + '/p' + page + '] pool=' + pool.length + ' out=' + out.length);
+  return out;
+}
+
+// ── MAIN EXPORT ───────────────────────────────────────────
+async function fetchNews(category, country, page, pageSize) {
+  if (country   === undefined) country  = '';
+  if (page      === undefined) page     = 1;
+  if (pageSize  === undefined) pageSize = 10;
+
+  var countryCode = COUNTRY_MAP[country] !== undefined ? COUNTRY_MAP[country] : country;
+  var isWorldwide = !countryCode;
+  var cacheKey    = category + '_' + (countryCode || 'worldwide') + '_p' + page;
+  var ttl         = isWorldwide ? WORLDWIDE_TTL : REGION_TTL;
+  var now         = Date.now();
+
+  if (cache[cacheKey] && (now - cache[cacheKey].timestamp) < ttl) {
+    console.log('[CACHE HIT] ' + cacheKey);
     return cache[cacheKey].data;
   }
 
-  var query = CATEGORY_QUERIES[category] || category;
-  var articles = [];
+  var result = [];
 
-  try {
-    if (countryCode) {
-      var regionInfo = REGION_INFO[countryCode] || { name: countryCode.toUpperCase(), flag: '' };
+  if (isWorldwide) {
+    // Worldwide = global RSS feeds only (fast, no 9-region wait)
+    console.log('[Worldwide/' + category + '/p' + page + '] Fetching global feeds...');
+    var globalRSS = (RSS_FEEDS.global || []).map(function(feed) {
+      return fetchRSS(feed, { name: 'Worldwide', flag: '🌐' });
+    });
+    // Also grab US + UK feeds since they have the most English content
+    var usFeeds  = (RSS_FEEDS.us  || []).map(function(feed) { return fetchRSS(feed, REGION_INFO.us);  });
+    var gbFeeds  = (RSS_FEEDS.gb  || []).map(function(feed) { return fetchRSS(feed, REGION_INFO.gb);  });
+    var inFeeds  = (RSS_FEEDS.in  || []).map(function(feed) { return fetchRSS(feed, REGION_INFO.in);  });
 
-      // Step 1: Try top-headlines with country + query
-      var res1 = await axios.get('https://newsapi.org/v2/top-headlines', {
-        params: {
-          country: countryCode,
-          q: query,
-          pageSize: 5,
-          apiKey: process.env.NEWS_API_KEY
-        },
-        timeout: 10000
-      });
+    var allResults = await Promise.allSettled(globalRSS.concat(usFeeds).concat(gbFeeds).concat(inFeeds));
+    var pool = [];
+    allResults.forEach(function(r) { if (r.status === 'fulfilled' && r.value) pool = pool.concat(r.value); });
 
-      articles = (res1.data.articles || [])
-        .filter(function(a) { return a.title && a.title !== '[Removed]'; })
-        .map(function(a) { return normalizeArticle(a, regionInfo); });
+    // Try category filter first, fall back to all if too few
+    var filtered = pool.filter(function(a) { return matchesCategory(a, category); });
+    if (filtered.length < 6) {
+      console.log('[Worldwide] Category filter too strict (' + filtered.length + '), using full pool of ' + pool.length);
+      filtered = pool;
+    }
+    filtered = dedupe(filtered);
+    filtered = sortByDate(filtered);
 
-      // Step 2: If empty, try top-headlines with country only (no query)
-      if (articles.length === 0) {
-        console.log('[' + category + '/' + countryCode + '] Trying top-headlines without query...');
-        var res2 = await axios.get('https://newsapi.org/v2/top-headlines', {
-          params: {
-            country: countryCode,
-            pageSize: 5,
-            apiKey: process.env.NEWS_API_KEY
-          },
-          timeout: 10000
-        });
-
-        articles = (res2.data.articles || [])
-          .filter(function(a) { return a.title && a.title !== '[Removed]'; })
-          .map(function(a) { return normalizeArticle(a, regionInfo); });
-      }
-
-      // Step 3: If still empty, try everything with country-specific sources
-      if (articles.length === 0 && COUNTRY_SOURCES[countryCode]) {
-        console.log('[' + category + '/' + countryCode + '] Trying everything with sources...');
-        var res3 = await axios.get('https://newsapi.org/v2/everything', {
-          params: {
-            sources: COUNTRY_SOURCES[countryCode],
-            q: query,
-            pageSize: 5,
-            apiKey: process.env.NEWS_API_KEY
-          },
-          timeout: 10000
-        });
-
-        articles = (res3.data.articles || [])
-          .filter(function(a) { return a.title && a.title !== '[Removed]'; })
-          .map(function(a) { return normalizeArticle(a, regionInfo); });
-      }
-
-      // Step 4: Last resort — everything with query + domain filter
-      if (articles.length === 0) {
-        console.log('[' + category + '/' + countryCode + '] Trying everything with domain filter...');
-        var res4 = await axios.get('https://newsapi.org/v2/everything', {
-          params: {
-            q: query,
-            language: 'en',
-            sortBy: 'publishedAt',
-            pageSize: 20,
-            apiKey: process.env.NEWS_API_KEY
-          },
-          timeout: 10000
-        });
-
-        var filtered = (res4.data.articles || [])
-          .filter(function(a) {
-            return a.title && a.title !== '[Removed]' && isFromCountry(a, countryCode);
-          })
-          .slice(0, 5)
-          .map(function(a) { return normalizeArticle(a, regionInfo); });
-
-        articles = filtered;
-      }
-
-    } else {
-      // WORLDWIDE
-      var res = await axios.get('https://newsapi.org/v2/everything', {
-        params: {
-          q: query,
-          language: 'en',
-          sortBy: 'publishedAt',
-          pageSize: 5,
-          apiKey: process.env.NEWS_API_KEY
-        },
-        timeout: 10000
-      });
-
-      articles = (res.data.articles || [])
-        .filter(function(a) { return a.title && a.title !== '[Removed]'; })
-        .map(function(a) {
-          var sourceName = a.source ? a.source.name : '';
-          var detected = getSourceCountry(sourceName);
-          return {
-            title: a.title,
-            description: a.description || '',
-            url: a.url,
-            image: a.urlToImage || '',
-            publishedAt: a.publishedAt,
-            source: { name: sourceName },
-            sourceCountryName: detected ? detected.name : 'Worldwide',
-            sourceCountryFlag: detected ? detected.flag : '🌐'
-          };
-        });
+    // NewsData.io — always fire in parallel for worldwide (no country filter = broad results)
+    if (process.env.NEWSDATA_API_KEY) {
+      try {
+        var nd = await fetchNewsData(category, null, pageSize * 2);
+        if (nd.length) {
+          pool = pool.concat(nd);
+          filtered = pool.filter(function(a) { return matchesCategory(a, category); });
+          if (filtered.length < 6) filtered = pool;
+          filtered = dedupe(filtered);
+          filtered = sortByDate(filtered);
+        }
+      } catch(e) {}
     }
 
-    console.log('[' + category + '/' + (countryCode || 'worldwide') + '] Final count: ' + articles.length);
-    cache[cacheKey] = { data: articles, timestamp: now };
-    return articles;
-
-  } catch (err) {
-    console.error('[' + category + '] NewsAPI Error:', err.response ? err.response.data : err.message);
-    if (cache[cacheKey]) {
-      console.log('[' + category + '] Returning stale cache');
-      return cache[cacheKey].data;
-    }
-    return [];
+    var start = (page - 1) * pageSize;
+    result = filtered.slice(start, start + pageSize);
+    console.log('[Worldwide/' + category + '/p' + page + '] pool=' + pool.length + ' out=' + result.length);
+  } else {
+    result = await fetchRegion(category, countryCode, page, pageSize, false);
   }
+
+  cache[cacheKey] = { data: result, timestamp: now };
+  return result;
 }
 
 module.exports = { fetchNews };
